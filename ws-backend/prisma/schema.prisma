@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String    @id @default(cuid())
+  username String    @unique
+  password String
+  name     String
+  roomId   Int?
+  Room     Room?     @relation(fields: [roomId], references: [id])
+  Message  Message[]
+}
+
+model Room {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  User    User[]
+  Message Message[]
+}
+
+model Message {
+  id        Int     @id @default(autoincrement())
+  roomId    Int
+  createdBy String
+  isPath    Boolean
+  shapeId   Int?    @unique
+  pathId    Int?    @unique
+  Room      Room    @relation(fields: [roomId], references: [id])
+  User      User    @relation(fields: [createdBy], references: [id])
+  Shape     Shape?  @relation(fields: [shapeId], references: [id])
+  Path      Path?   @relation(fields: [pathId], references: [id])
+}
+
+model Shape {
+  id        Int      @id @default(autoincrement())
+  type      String
+  startx    Int
+  starty    Int
+  currentx  Int
+  currenty  Int
+  color     String
+  width     Int
+  fillColor String
+  Message   Message?
+}
+
+model Path {
+  id        Int      @unique @default(autoincrement())
+  Point     Point[]
+  messageId Int
+  Message   Message?
+}
+
+model Point {
+  id          Int  @id @default(autoincrement())
+  x           Int
+  y           Int
+  pointNumber Int
+  pathId      Int
+  Path        Path @relation(fields: [pathId], references: [id])
+}
+
+// Error parsing attribute "@relation": A one-to-one relation must use unique fields on the defining side. Either add an `@unique` attribute to the field `shapeId`, or change the relation to one-to-many.Prisma
