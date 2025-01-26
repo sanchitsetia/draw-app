@@ -6,6 +6,17 @@ interface shape {
   type: "rectangle" | "circle" | "line" | "diamond";
 }
 
+interface point {
+  x: number;
+  y: number;
+}
+
+interface path {
+  points: point[];
+  color: string;
+  width: number;
+}
+
 export class Canvas2D{
   private static instance:Canvas2D|null = null;
   private canvas: HTMLCanvasElement|null=null;
@@ -15,7 +26,7 @@ export class Canvas2D{
   private starty = 0;
   private currentx = 0;
   private currenty = 0;
-  private currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond" = null;
+  private currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond" | "pencil" | "eraser" = null;
   private isSelected = false;
   private selectedIndex = 0;
   private isDraggable = false;
@@ -24,6 +35,9 @@ export class Canvas2D{
   private handleIndex: number|null = null;
   private isPanning = false;
   private offset = { x: 0, y: 0 };
+  private paths: path[] = [];
+  private currentPath: path = { points: [], color: "black", width: 2 };
+  private isErasing = false;
 
   private constructor() {}
 
@@ -34,7 +48,7 @@ export class Canvas2D{
     return Canvas2D.instance
   }
 
-  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond"):void {
+  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser"):void {
     if(!Canvas2D.instance || Canvas2D.instance.canvas !== canvas){
       Canvas2D.instance!.canvas = canvas
     }
@@ -52,6 +66,12 @@ export class Canvas2D{
     this.canvas.removeEventListener("mousedown", this.onMouseDownSelector);
     this.canvas.removeEventListener("mousemove", this.onMouseMoveSelector);
     this.canvas.removeEventListener("mouseup", this.onMouseUpSelector);
+    this.canvas.removeEventListener("mousedown", this.onMouseDownPencil);
+    this.canvas.removeEventListener("mousemove", this.onMouseMovePencil);
+    this.canvas.removeEventListener("mouseup", this.onMouseUpPencil);
+    this.canvas.removeEventListener("mousedown", this.onMouseDownEraser);
+    this.canvas.removeEventListener("mousemove", this.onMouseMoveEraser);
+    this.canvas.removeEventListener("mouseup", this.onMouseUpEraser);
     this.canvas.removeEventListener("mousedown", this.onMouseDownShape);
     this.canvas.removeEventListener("mousemove", this.onMouseMoveShape);
     this.canvas.removeEventListener("mouseup", this.onMouseUpShape);
@@ -66,6 +86,10 @@ export class Canvas2D{
       this.ShapeEventHandler();
     else if(this.currentSelectedShape === "selector")
       this.SelectorEventHandler();
+    else if(this.currentSelectedShape === "pencil")
+      this.PencilEventHandler();
+    else if (this.currentSelectedShape === "eraser")
+      this.EraserEventHandler();
   }
 
   private drawBoundingBox(ctx: CanvasRenderingContext2D, shape: shape) {
@@ -125,6 +149,7 @@ export class Canvas2D{
     if(ctx)
     {
     ctx.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+    this.drawPaths();
     console.log(this.shapes)
     this.shapes.forEach((shape,index)=>{
       if(shape.type === "rectangle")
@@ -211,6 +236,128 @@ private SelectorEventHandler = ()=>{
   this.canvas?.addEventListener("mousedown",this.onMouseDownSelector)
   this.canvas?.addEventListener("mousemove",this.onMouseMoveSelector)
   this.canvas?.addEventListener("mouseup",this.onMouseUpSelector)
+}
+
+private EraserEventHandler = ()=>{
+  this.startx = 0;
+  this.starty = 0;
+  this.isSelected = false;
+  this.canvas?.addEventListener("mousedown",this.onMouseDownEraser)
+  this.canvas?.addEventListener("mousemove",this.onMouseMoveEraser)
+  this.canvas?.addEventListener("mouseup",this.onMouseUpEraser)
+}
+private removeShapeOrPathSelected(x:number,y:number){
+  for(let [index,s] of this.shapes.entries()) {
+    if(this.isShapeSelected(x,y,s.startx,s.starty,s.currentx,s.currenty))
+      {
+        this.shapes.splice(index,1);
+        break;
+      }
+  }
+  for(let [index,p] of this.paths.entries()) {
+    if(this.isPathSelected(x,y,p.points))
+      {
+        this.paths.splice(index,1);
+        break;
+      }
+  }
+}
+
+private isPathSelected(x:number,y:number,points:point[]){
+  for(let [index,p] of points.entries()) {
+    if(index === points.length-1)
+      break;
+    if(x >= Math.min(p.x,points[index+1].x) && x <= Math.max(p.x,points[index+1].x) && y >= Math.min(p.y,points[index+1].y) && y <= Math.max(p.y,points[index+1].y))
+      return true;
+  }
+  return false
+}
+
+private onMouseDownEraser = (e:MouseEvent)=>{
+  this.isErasing = true;
+  this.startx = e.clientX
+  this.starty = e.clientY
+  this.removeShapeOrPathSelected(this.startx,this.starty);
+}
+
+private onMouseMoveEraser = (e:MouseEvent)=>{
+  if(!this.isErasing)
+    return;
+  this.currentx = e.clientX
+  this.currenty = e.clientY
+  this.removeShapeOrPathSelected(this.currentx,this.currenty);
+  this.clearCanvas();
+}
+
+private onMouseUpEraser = (e:MouseEvent)=>{
+  this.isErasing = false;
+  this.clearCanvas()
+}
+
+private drawPaths=()=>{
+  const ctx = this.canvas?.getContext("2d");
+  if(ctx){
+    this.paths.forEach((path)=>{
+      ctx.beginPath();
+      ctx.strokeStyle = path.color;
+      ctx.lineWidth = path.width;
+      path.points.forEach((point, index) => {
+        if (index === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      });
+      ctx.stroke();
+    })
+    if(this.isDrawing && this.currentPath.points.length > 0){
+      ctx.beginPath();
+      ctx.strokeStyle = this.currentPath.color;
+      ctx.lineWidth = this.currentPath.width;
+      this.currentPath.points.forEach((point, index) => {
+        if (index === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      });
+      ctx.stroke();
+    }
+  }
+}
+
+private PencilEventHandler = ()=>{
+  this.startx = 0;
+  this.starty = 0;
+  this.isSelected = false;
+  this.canvas?.addEventListener("mousedown",this.onMouseDownPencil)
+  this.canvas?.addEventListener("mousemove",this.onMouseMovePencil)
+  this.canvas?.addEventListener("mouseup",this.onMouseUpPencil)
+}
+
+private onMouseDownPencil = (event:MouseEvent)=>{
+  this.isDrawing = true;
+  this.startx = event.clientX
+  this.starty = event.clientY
+  this.currentPath.points.push({x:this.startx,y:this.starty})
+}
+
+private onMouseMovePencil = (event:MouseEvent)=>{
+  if(this.isDrawing){
+    this.currentx = event.clientX
+    this.currenty = event.clientY
+    this.currentPath.points.push({x:this.currentx,y:this.currenty})
+    this.clearCanvas()
+  }
+}
+
+private onMouseUpPencil = (event:MouseEvent)=>{
+  if(this.isDrawing){
+    this.isDrawing = false;
+    this.paths.push(this.currentPath);
+    this.currentPath = { points: [], color: "black", width: 2 };   
+  }
+
 }
 
 private isShapeSelected = (cx:number,cy:number, ssx:number, ssy:number, scx:number, scy:number) => {

@@ -51,6 +51,16 @@ export default function Home() {
     if (canvasRef.current) Canvas2D.initialize(canvasRef.current, null);
   };
 
+  const onClickDraw = () => {
+    const canvasInstance = Canvas2D.getInstance();
+    if (canvasRef.current) Canvas2D.initialize(canvasRef.current, "pencil");
+  };
+
+  const onClickEraser = () => {
+    const canvasInstance = Canvas2D.getInstance();
+    if (canvasRef.current) Canvas2D.initialize(canvasRef.current, "eraser");
+  };
+
   return (
     <div className="overflow-hidden h-screen m-0 p-0">
       <canvas
@@ -77,6 +87,12 @@ export default function Home() {
         </button>
         <button className="bg-black text-white p-2" onClick={onClickPan}>
           Pan
+        </button>
+        <button className="bg-black text-white p-2" onClick={onClickDraw}>
+          draw
+        </button>
+        <button className="bg-black text-white p-2" onClick={onClickEraser}>
+          Eraser
         </button>
       </div>
     </div>
