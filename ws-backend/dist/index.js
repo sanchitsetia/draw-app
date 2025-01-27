@@ -70,12 +70,14 @@ wss.on('connection', function connection(ws) {
     ws.on('error', console.error);
     ws.on('message', function message(data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
             console.log('received: %s', data);
             console.log("current server state User before", Users);
             console.log("current server state Room before", Room);
             const parsedData = JSON.parse(data.toString());
             if (parsedData.type === "join_room") {
                 try {
+                    const roomName = parsedData.payload.roomName;
                     const roomfromdb = yield prisma.room.findUnique({
                         where: {
                             name: parsedData.payload.roomName
@@ -89,13 +91,13 @@ wss.on('connection', function connection(ws) {
                     if (!(user === null || user === void 0 ? void 0 : user.room.includes(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id))) {
                         user === null || user === void 0 ? void 0 : user.room.push(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id);
                     }
-                    if (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]) {
-                        if (!(Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]).includes(userId)) {
-                            Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].push(userId);
+                    if (Room[roomName]) {
+                        if (!(Room[roomName]).includes(userId)) {
+                            Room[roomName].push(userId);
                         }
                     }
                     else {
-                        Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id] = [userId];
+                        Room[roomName] = [userId];
                     }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Joined Successfully" }));
                 }
@@ -106,6 +108,7 @@ wss.on('connection', function connection(ws) {
             }
             if (parsedData.type === "leave_room") {
                 try {
+                    const roomName = parsedData.payload.roomName;
                     const roomfromdb = yield prisma.room.findUnique({
                         where: { name: parsedData.payload.roomName }
                     });
@@ -115,8 +118,8 @@ wss.on('connection', function connection(ws) {
                     });
                     const user = Users.find(user => user.id === userId);
                     user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id));
-                    if (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id] && (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]).includes(userId)) {
-                        Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].splice(Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].indexOf(userId));
+                    if (Room[roomName] && (Room[roomName]).includes(userId)) {
+                        Room[roomName].splice(Room[roomName].indexOf(userId));
                     }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Left Successfully" }));
                 }
@@ -127,6 +130,7 @@ wss.on('connection', function connection(ws) {
             }
             if (parsedData.type === "delete_room") {
                 try {
+                    const roomName = parsedData.payload.roomName;
                     const roomFromdb = yield prisma.room.findUnique({
                         where: { name: parsedData.payload.roomName }
                     });
@@ -139,7 +143,7 @@ wss.on('connection', function connection(ws) {
                     });
                     const user = Users.find(user => user.id === userId);
                     user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id));
-                    delete Room[roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id];
+                    delete Room[roomName];
                     ws.send(JSON.stringify({ "status": 200, "message": "Room deleted Successfully" }));
                 }
                 catch (error) {
@@ -148,6 +152,75 @@ wss.on('connection', function connection(ws) {
                 }
             }
             if (parsedData.type === "message") {
+                try {
+                    const roomName = parsedData.payload.roomName;
+                    const shapeType = (_a = parsedData.payload.message) === null || _a === void 0 ? void 0 : _a.type;
+                    const userIdsInRoom = Room[roomName];
+                    if (userIdsInRoom) {
+                        userIdsInRoom.forEach((u) => {
+                            var _a;
+                            let userSocket = (_a = (Users.find((u1) => u1.id === u))) === null || _a === void 0 ? void 0 : _a.socket;
+                            if (userSocket)
+                                userSocket.send(JSON.stringify(parsedData.payload.message));
+                        });
+                    }
+                    const roomFromdb = yield prisma.room.findUnique({
+                        where: { name: parsedData.payload.roomName }
+                    });
+                    if (shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect") {
+                        const shapeCreated = yield prisma.shape.create({
+                            data: {
+                                color: (_b = parsedData.payload.message) === null || _b === void 0 ? void 0 : _b.color,
+                                currentx: (_c = parsedData.payload.message) === null || _c === void 0 ? void 0 : _c.currentx,
+                                currenty: (_d = parsedData.payload.message) === null || _d === void 0 ? void 0 : _d.currenty,
+                                fillColor: (_e = parsedData.payload.message) === null || _e === void 0 ? void 0 : _e.fillColor,
+                                startx: (_f = parsedData.payload.message) === null || _f === void 0 ? void 0 : _f.startx,
+                                starty: (_g = parsedData.payload.message) === null || _g === void 0 ? void 0 : _g.starty,
+                                type: shapeType,
+                                width: (_h = parsedData.payload.message) === null || _h === void 0 ? void 0 : _h.width,
+                            }
+                        });
+                        yield prisma.message.create({
+                            data: {
+                                isPath: false,
+                                createdBy: userId,
+                                roomId: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id,
+                                shapeId: shapeCreated.id
+                            }
+                        });
+                    }
+                    else if (shapeType === "pencil") {
+                        const messageCreated = yield prisma.message.create({
+                            data: {
+                                isPath: true,
+                                createdBy: userId,
+                                roomId: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id,
+                            }
+                        });
+                        const pathCreated = yield prisma.path.create({
+                            data: {
+                                messageId: messageCreated.id
+                            }
+                        });
+                        const pointsTobeInserted = [];
+                        (_k = (_j = parsedData.payload.message) === null || _j === void 0 ? void 0 : _j.points) === null || _k === void 0 ? void 0 : _k.forEach((items) => {
+                            pointsTobeInserted.push({ pathId: pathCreated.id, pointNumber: items.pointNumber, x: items.x, y: items.y });
+                        });
+                        yield prisma.point.createMany({
+                            data: pointsTobeInserted
+                        });
+                        yield prisma.message.update({
+                            where: { id: messageCreated.id },
+                            data: {
+                                pathId: pathCreated.id
+                            }
+                        });
+                    }
+                }
+                catch (error) {
+                    console.log("error while deleting room", error);
+                    ws.send(JSON.stringify({ "status": 500, "error": "Internal server error" }));
+                }
             }
             console.log("current server state User after", Users);
             console.log("current server state Room after", Room);
