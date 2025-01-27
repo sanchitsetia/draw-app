@@ -22,6 +22,7 @@ const wss = new ws_1.WebSocketServer({ noServer: true });
 const server = http_1.default.createServer();
 const prisma = new client_1.PrismaClient();
 const Users = [];
+const Room = {};
 server.on("upgrade", (request, socket, head) => {
     try {
         const authheader = request.headers.authorization;
@@ -71,6 +72,7 @@ wss.on('connection', function connection(ws) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log('received: %s', data);
             console.log("current server state User before", Users);
+            console.log("current server state Room before", Room);
             const parsedData = JSON.parse(data.toString());
             if (parsedData.type === "join_room") {
                 try {
@@ -86,6 +88,14 @@ wss.on('connection', function connection(ws) {
                     const user = Users.find(user => user.id === userId);
                     if (!(user === null || user === void 0 ? void 0 : user.room.includes(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id))) {
                         user === null || user === void 0 ? void 0 : user.room.push(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id);
+                    }
+                    if (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]) {
+                        if (!(Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]).includes(userId)) {
+                            Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].push(userId);
+                        }
+                    }
+                    else {
+                        Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id] = [userId];
                     }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Joined Successfully" }));
                 }
@@ -105,6 +115,9 @@ wss.on('connection', function connection(ws) {
                     });
                     const user = Users.find(user => user.id === userId);
                     user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id));
+                    if (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id] && (Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id]).includes(userId)) {
+                        Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].splice(Room[roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id].indexOf(userId));
+                    }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Left Successfully" }));
                 }
                 catch (error) {
@@ -112,7 +125,32 @@ wss.on('connection', function connection(ws) {
                     ws.send(JSON.stringify({ "status": 500, "error": "Internal server error" }));
                 }
             }
+            if (parsedData.type === "delete_room") {
+                try {
+                    const roomFromdb = yield prisma.room.findUnique({
+                        where: { name: parsedData.payload.roomName }
+                    });
+                    yield prisma.room.delete({
+                        where: { id: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id }
+                    });
+                    yield prisma.user.update({
+                        where: { id: userId },
+                        data: { roomId: null }
+                    });
+                    const user = Users.find(user => user.id === userId);
+                    user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id));
+                    delete Room[roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id];
+                    ws.send(JSON.stringify({ "status": 200, "message": "Room deleted Successfully" }));
+                }
+                catch (error) {
+                    console.log("error while deleting room", error);
+                    ws.send(JSON.stringify({ "status": 500, "error": "Internal server error" }));
+                }
+            }
+            if (parsedData.type === "message") {
+            }
             console.log("current server state User after", Users);
+            console.log("current server state Room after", Room);
         });
     });
     ws.send('something');
