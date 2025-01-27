@@ -34,20 +34,14 @@ type Message = {
   points?: point[]
 }
 
-type Room = {
-  name: string,
-  messages: Message[]
-}
-
 type parsedData = {
   type: "join_room" | "delete_room" | "leave_room" | "message",
   payload: {
     roomName: string,
-    message: Message,
+    message?: Message,
   }
 }
 const Users: User[] = []
-const Rooms: Room[] = []
 
 server.on("upgrade", (request, socket, head) => {
   try {
@@ -97,34 +91,52 @@ wss.on('connection', function connection(ws) {
   });
   ws.on('error', console.error);
 
-  ws.on('message', function message(data) {
+  ws.on('message', async function message(data) {
     console.log('received: %s', data);
+    console.log("current server state User before",Users)
     const parsedData:parsedData = JSON.parse(data.toString());
     if(parsedData.type === "join_room"){
-      const room = Rooms.find(room => room.name === parsedData.payload.roomName)
-      if(!room){
-        const room = await prisma.room.findUnique({
-          where: {
-            name: parsedData.payload.roomName
-          }
-        })
-        Rooms.push({
-          name: parsedData.payload.roomName,
-          messages: []
-        })
-      }
-      const user = Users.find(user => user.id === userId)
-      if(user){
-        user.room.push(parsedData.payload.roomName)
+      try {
+        const roomfromdb = await prisma.room.findUnique({
+            where: {
+              name: parsedData.payload.roomName
+            }
+          });
+            await prisma.user.update({
+              where: { id: userId },
+              data: { roomId: roomfromdb!.id }
+            })  
+        const user = Users.find(user => user.id === userId)
+        if(!user?.room.includes(roomfromdb?.id!))
+        {
+          user?.room.push(roomfromdb?.id!)
+        }
+        ws.send(JSON.stringify({"status": 200, "message" : "Room Joined Successfully"}))
+        
+      } catch (error) {
+        console.log("error while joining room", error)
+        ws.send(JSON.stringify({"status":500, "error": "Internal server error"}))
       }
     }
-    if(parsedData.type === "message"){
-      const room = Rooms.find(room => room.id === parsedData.payload.roomName)
-      if(room){
-        room.messages.push(parsedData.payload.message)
+    if(parsedData.type === "leave_room"){
+      try {
+        const roomfromdb = await prisma.room.findUnique({
+          where:{name:parsedData.payload.roomName}
+        })
+        await prisma.user.update({
+          where:{id: userId, roomId: roomfromdb?.id },
+          data: {roomId: null}
+        })
+        const user = Users.find(user=> user.id === userId)
+        user?.room.splice(user.room.indexOf(roomfromdb?.id!))
+        ws.send(JSON.stringify({"status": 200, "message" : "Room Left Successfully"}))
+      } catch (error) {
+        console.log("error while leaving room", error)
+        ws.send(JSON.stringify({"status":500, "error": "Internal server error"}))        
       }
     }
 
+    console.log("current server state User after",Users)
   });
 
   ws.send('something');
