@@ -13,23 +13,47 @@ import { Brush, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import axios from "axios";
+import { headers } from "next/headers";
 
 export default function Dashboard() {
   const [roomName, setRoomName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [rooms, setRooms] = useState<any[]>([]);
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) router.push("signin");
+    setToken(authToken);
+  });
 
   const createRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roomName.trim()) return;
 
     setIsCreating(true);
-
-    useEffect(() => {
-      const token = localStorage.getItem("authToken");
-      if (!token) router.push("signin");
-    });
+    try {
+      const res = await axios.post(
+        "http://localhost:3000/room",
+        {
+          roomName: roomName,
+        },
+        { headers: { Authorization: token } }
+      );
+      if (res.status === 201) router.push(`/room/${res.data.roomId}`);
+      else {
+        setError("Error While Creating Room...");
+        setIsCreating(false);
+      }
+    } catch (error) {
+      setError("Error While Creating Room...");
+      setIsCreating(false);
+    } finally {
+      setIsCreating(false);
+    }
     //   try {
     //     const { data: { user } } = {}
 
@@ -84,6 +108,11 @@ export default function Dashboard() {
                   Create Room
                 </Button>
               </form>
+              {error && (
+                <div className="text-center mt-4 text-sm text-red-500">
+                  {error}
+                </div>
+              )}
             </CardContent>
           </Card>
 
