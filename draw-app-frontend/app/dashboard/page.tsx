@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Brush, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function Dashboard() {
@@ -25,6 +25,11 @@ export default function Dashboard() {
     if (!roomName.trim()) return;
 
     setIsCreating(true);
+
+    useEffect(() => {
+      const token = localStorage.getItem("authToken");
+      if (!token) router.push("signin");
+    });
     //   try {
     //     const { data: { user } } = {}
 

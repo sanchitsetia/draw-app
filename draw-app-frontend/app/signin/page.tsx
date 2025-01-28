@@ -12,17 +12,29 @@ import { Label } from "@/components/ui/label";
 import { Brush } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function SignIn() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Handle signin logic here
-    console.log("Sign in:", formData);
+    const res = await axios.post("http://localhost:3000/signin", {
+      username: formData.username,
+      password: formData.password,
+    });
+    if (res.status === 200) {
+      localStorage.setItem("authToken", res.data.token);
+      router.push("dashboard");
+    } else setError("Error While sign in...");
   };
 
   return (
