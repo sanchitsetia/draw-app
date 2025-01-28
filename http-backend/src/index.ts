@@ -4,9 +4,11 @@ import bcrypt from "bcryptjs";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { protectRoutes } from "./middlewares/protectRoutes";
+import cors from "cors"
 
 const app = express();
 app.use(express.json());
+app.use(cors())
 const prisma = new PrismaClient();
 
 app.post("/signup",async (req:Request,res:Response)=>{

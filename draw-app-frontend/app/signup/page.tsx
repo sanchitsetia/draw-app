@@ -13,18 +13,28 @@ import { Label } from "@/components/ui/label";
 import { Brush } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function SignUp() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     name: "",
   });
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Handle signup logic here
-    console.log("Sign up:", formData);
+    const res = await axios.post("http://localhost:3000/signup", {
+      username: formData.username,
+      password: formData.password,
+      name: formData.name,
+    });
+    if (res.status === 201) router.push("signin");
+    else setError("Error While Signing Up...");
   };
 
   return (
@@ -87,6 +97,9 @@ export default function SignUp() {
               Sign in
             </Link>
           </div>
+          {error && (
+            <div className="text-center mt-4 text-sm text-red-500">{error}</div>
+          )}
         </CardContent>
       </Card>
     </div>
