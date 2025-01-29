@@ -38,6 +38,7 @@ export class Canvas2D{
   private paths: path[] = [];
   private currentPath: path = { points: [], color: "black", width: 2 };
   private isErasing = false;
+  private socket: WebSocket | null = null;
 
   private constructor() {}
 
@@ -57,7 +58,6 @@ export class Canvas2D{
     Canvas2D.instance!.attachEvents();
     Canvas2D.instance!.isSelected = false;
     Canvas2D.instance!.clearCanvas();
-
   }
 
   private detachEvents() {
@@ -91,6 +91,14 @@ export class Canvas2D{
     else if (this.currentSelectedShape === "eraser")
       this.EraserEventHandler();
   }
+
+  private getCanvasPoint = (e: MouseEvent) => {
+    const rect = this.canvas?.getBoundingClientRect();
+    return {
+      x: e.clientX - rect!.left,
+      y: e.clientY - rect!.top
+    };
+  };
 
   private drawBoundingBox(ctx: CanvasRenderingContext2D, shape: shape) {
     const { startx, starty, currentx, currenty } = shape;
@@ -496,18 +504,20 @@ private onMouseMovePanning = (event:WheelEvent)=>{
     }
 
     private onMouseDownShape = (event:MouseEvent)=>{
-      this.startx = event.clientX;
-      this.starty = event.clientY;
-      this.currentx = event.clientX;
-      this.currenty = event.clientY;
+      const currentPoint = this.getCanvasPoint(event)
+      this.startx = currentPoint.x;
+      this.starty = currentPoint.y;
+      this.currentx = currentPoint.x;
+      this.currenty = currentPoint.y;
       this.isDrawing = true;
     }
 
     private onMouseMoveShape = (event:MouseEvent)=>{
       if(this.isDrawing)
         {
-          this.currentx = event.clientX;
-          this.currenty = event.clientY;
+          const currentPoint = this.getCanvasPoint(event)
+          this.currentx = currentPoint.x;
+          this.currenty = currentPoint.y;
           if (this.currentSelectedShape === "selector") return;
           this.drawDynamic(this.currentSelectedShape!)
         }
@@ -517,12 +527,19 @@ private onMouseMovePanning = (event:WheelEvent)=>{
       if (this.currentSelectedShape === "selector") return;
       if(this.isDrawing)
       {
-        this.currentx = event.clientX;
-        this.currenty = event.clientY;
-        this.shapes.push({startx:this.startx,starty:this.starty,currentx:this.currentx,currenty:this.currenty,type:this.currentSelectedShape!})
-        this.clearCanvas();
+        const currentPoint = this.getCanvasPoint(event)
+        this.currentx = currentPoint.x;
+        this.currenty = currentPoint.y;
+        this.addShape({startx:this.startx,starty:this.starty,currentx:this.currentx,currenty:this.currenty,type:this.currentSelectedShape!})
       }
       this.isDrawing = false
     }
+
+    public addShape(shape:shape){
+      this.shapes.push(shape)
+      this.clearCanvas();
+    }
 }
+
+
 

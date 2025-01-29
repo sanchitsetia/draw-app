@@ -150,7 +150,7 @@ wss.on('connection', function connection(ws) {
                         userIdsInRoom.forEach((u) => {
                             var _a;
                             let userSocket = (_a = (Users.find((u1) => u1.id === u))) === null || _a === void 0 ? void 0 : _a.socket;
-                            if (userSocket)
+                            if (userSocket && userSocket !== ws)
                                 userSocket.send(JSON.stringify(parsedData.payload.message));
                         });
                     }

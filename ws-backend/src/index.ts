@@ -175,13 +175,11 @@ wss.on('connection', function connection(ws) {
         {
           userIdsInRoom.forEach((u)=>{
             let userSocket = (Users.find((u1)=> u1.id === u))?.socket
-            if(userSocket)
+            if(userSocket && userSocket!==ws)
               userSocket.send(JSON.stringify(parsedData.payload.message))
           })
         }
 
-
-        
         if(shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect")
         {
           const shapeCreated = await prisma.shape.create({

@@ -1,5 +1,6 @@
 "use client";
 
+import { Canvas2D } from "@/app/canvas/canvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -78,15 +79,21 @@ export default function Room() {
   useEffect(() => {
     if (roomJoined && canvasRef.current) {
       const canvas = canvasRef.current;
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight - 64;
-      const context = canvas.getContext("2d");
-      if (context) {
-        context.strokeStyle = color;
-        context.lineWidth = lineWidth;
-        context.lineCap = "round";
-        setCtx(context);
-      }
+      if (!canvas) return;
+
+      const resizeCanvas = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - 64;
+        const canvasInstance = Canvas2D.getInstance();
+        Canvas2D.initialize(canvas, "rectangle");
+      };
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      return () => {
+        window.removeEventListener("resize", resizeCanvas);
+      };
     }
   }, [roomJoined]);
 
