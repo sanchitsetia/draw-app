@@ -25,7 +25,8 @@ const Users = [];
 const Room = {};
 server.on("upgrade", (request, socket, head) => {
     try {
-        const authheader = request.headers.authorization;
+        const url = new URL(request.url, `http://${request.headers.host}`);
+        const authheader = url.searchParams.get('token');
         if (!authheader) {
             console.log("Invalid or missing Authorization header");
             socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
@@ -77,27 +78,22 @@ wss.on('connection', function connection(ws) {
             const parsedData = JSON.parse(data.toString());
             if (parsedData.type === "join_room") {
                 try {
-                    const roomName = parsedData.payload.roomName;
-                    const roomfromdb = yield prisma.room.findUnique({
-                        where: {
-                            name: parsedData.payload.roomName
-                        }
-                    });
+                    const roomId = parsedData.payload.roomId;
                     yield prisma.user.update({
                         where: { id: userId },
-                        data: { roomId: roomfromdb.id }
+                        data: { roomId: roomId }
                     });
                     const user = Users.find(user => user.id === userId);
-                    if (!(user === null || user === void 0 ? void 0 : user.room.includes(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id))) {
-                        user === null || user === void 0 ? void 0 : user.room.push(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id);
+                    if (!(user === null || user === void 0 ? void 0 : user.room.includes(roomId))) {
+                        user === null || user === void 0 ? void 0 : user.room.push(roomId);
                     }
-                    if (Room[roomName]) {
-                        if (!(Room[roomName]).includes(userId)) {
-                            Room[roomName].push(userId);
+                    if (Room[roomId]) {
+                        if (!(Room[roomId]).includes(userId)) {
+                            Room[roomId].push(userId);
                         }
                     }
                     else {
-                        Room[roomName] = [userId];
+                        Room[roomId] = [userId];
                     }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Joined Successfully" }));
                 }
@@ -108,18 +104,15 @@ wss.on('connection', function connection(ws) {
             }
             if (parsedData.type === "leave_room") {
                 try {
-                    const roomName = parsedData.payload.roomName;
-                    const roomfromdb = yield prisma.room.findUnique({
-                        where: { name: parsedData.payload.roomName }
-                    });
+                    const roomId = parsedData.payload.roomId;
                     yield prisma.user.update({
-                        where: { id: userId, roomId: roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id },
+                        where: { id: userId, roomId: roomId },
                         data: { roomId: null }
                     });
                     const user = Users.find(user => user.id === userId);
-                    user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomfromdb === null || roomfromdb === void 0 ? void 0 : roomfromdb.id));
-                    if (Room[roomName] && (Room[roomName]).includes(userId)) {
-                        Room[roomName].splice(Room[roomName].indexOf(userId));
+                    user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomId));
+                    if (Room[roomId] && (Room[roomId]).includes(userId)) {
+                        Room[roomId].splice(Room[roomId].indexOf(userId));
                     }
                     ws.send(JSON.stringify({ "status": 200, "message": "Room Left Successfully" }));
                 }
@@ -130,20 +123,17 @@ wss.on('connection', function connection(ws) {
             }
             if (parsedData.type === "delete_room") {
                 try {
-                    const roomName = parsedData.payload.roomName;
-                    const roomFromdb = yield prisma.room.findUnique({
-                        where: { name: parsedData.payload.roomName }
-                    });
+                    const roomId = parsedData.payload.roomId;
                     yield prisma.room.delete({
-                        where: { id: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id }
+                        where: { id: roomId }
                     });
                     yield prisma.user.update({
                         where: { id: userId },
                         data: { roomId: null }
                     });
                     const user = Users.find(user => user.id === userId);
-                    user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id));
-                    delete Room[roomName];
+                    user === null || user === void 0 ? void 0 : user.room.splice(user.room.indexOf(roomId));
+                    delete Room[roomId];
                     ws.send(JSON.stringify({ "status": 200, "message": "Room deleted Successfully" }));
                 }
                 catch (error) {
@@ -153,9 +143,9 @@ wss.on('connection', function connection(ws) {
             }
             if (parsedData.type === "message") {
                 try {
-                    const roomName = parsedData.payload.roomName;
+                    const roomId = parsedData.payload.roomId;
                     const shapeType = (_a = parsedData.payload.message) === null || _a === void 0 ? void 0 : _a.type;
-                    const userIdsInRoom = Room[roomName];
+                    const userIdsInRoom = Room[roomId];
                     if (userIdsInRoom) {
                         userIdsInRoom.forEach((u) => {
                             var _a;
@@ -164,9 +154,6 @@ wss.on('connection', function connection(ws) {
                                 userSocket.send(JSON.stringify(parsedData.payload.message));
                         });
                     }
-                    const roomFromdb = yield prisma.room.findUnique({
-                        where: { name: parsedData.payload.roomName }
-                    });
                     if (shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect") {
                         const shapeCreated = yield prisma.shape.create({
                             data: {
@@ -184,7 +171,7 @@ wss.on('connection', function connection(ws) {
                             data: {
                                 isPath: false,
                                 createdBy: userId,
-                                roomId: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id,
+                                roomId: roomId,
                                 shapeId: shapeCreated.id
                             }
                         });
@@ -194,7 +181,7 @@ wss.on('connection', function connection(ws) {
                             data: {
                                 isPath: true,
                                 createdBy: userId,
-                                roomId: roomFromdb === null || roomFromdb === void 0 ? void 0 : roomFromdb.id,
+                                roomId: roomId,
                             }
                         });
                         const pathCreated = yield prisma.path.create({
@@ -226,7 +213,6 @@ wss.on('connection', function connection(ws) {
             console.log("current server state Room after", Room);
         });
     });
-    ws.send('something');
 });
 server.listen(8080, () => {
     console.log("WebSocket server is running on ws://localhost:8080");

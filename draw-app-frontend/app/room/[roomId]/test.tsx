@@ -31,32 +31,30 @@ export default function Room() {
   const { roomId } = useParams();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
+  const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
+  const [lastX, setLastX] = useState(0);
+  const [lastY, setLastY] = useState(0);
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [currentShape, setCurrentShape] = useState<Shape | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [roomJoined, setRoomJoined] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const socket = new WebSocket(
-      `ws://localhost:8080/?token=${encodeURIComponent(token as string)}`
+    const socket = new WebSocket("ws://localhost:8080/");
+    setSocket(socket);
+    socket.send(
+      JSON.stringify({
+        type: "join_room",
+        payload: {
+          roomId: roomId,
+        },
+      })
     );
-    socket.onopen = () => {
-      setSocket(socket);
-      console.log("Connected to WebSocket server");
-      socket.send(
-        JSON.stringify({
-          type: "join_room",
-          payload: {
-            roomId: Number(roomId),
-          },
-        })
-      );
-    };
   }, []);
 
   useEffect(() => {
@@ -96,6 +94,130 @@ export default function Room() {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       ctx.setTransform(1, 0, 0, 1, panOffset.x, panOffset.y); // Reapply pan
     }
+  };
+
+  const drawShape = (shape: Shape) => {
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = shape.width;
+
+    switch (shape.tool) {
+      case "line":
+        ctx.moveTo(shape.startX, shape.startY);
+        ctx.lineTo(shape.endX, shape.endY);
+        break;
+      case "circle":
+        const radius = Math.sqrt(
+          Math.pow(shape.endX - shape.startX, 2) +
+            Math.pow(shape.endY - shape.startY, 2)
+        );
+        ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
+        break;
+      case "square":
+        const width = shape.endX - shape.startX;
+        const height = shape.endY - shape.startY;
+        ctx.rect(shape.startX, shape.startY, width, height);
+        break;
+    }
+    ctx.stroke();
+  };
+
+  const redrawCanvas = () => {
+    clearCanvas();
+    shapes.forEach(drawShape);
+  };
+
+  const getCanvasPoint = (e: React.MouseEvent) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left - panOffset.x,
+      y: e.clientY - rect.top - panOffset.y,
+    };
+  };
+
+  const startDrawing = (e: React.MouseEvent) => {
+    if (!ctx || !canvasRef.current) return;
+
+    if (selectedTool === "hand") {
+      setIsPanning(true);
+      return;
+    }
+
+    const point = getCanvasPoint(e);
+    setIsDrawing(true);
+    setLastX(point.x);
+    setLastY(point.y);
+
+    if (selectedTool !== "pencil" && selectedTool !== "eraser") {
+      setCurrentShape({
+        tool: selectedTool,
+        startX: point.x,
+        startY: point.y,
+        endX: point.x,
+        endY: point.y,
+        color: color,
+        width: lineWidth,
+      });
+    }
+
+    if (selectedTool === "pencil" || selectedTool === "eraser") {
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+      ctx.strokeStyle = selectedTool === "eraser" ? "#ffffff" : color;
+    }
+  };
+
+  const draw = (e: React.MouseEvent) => {
+    if (!ctx || !canvasRef.current) return;
+
+    if (isPanning && selectedTool === "hand") {
+      setPanOffset((prev) => ({
+        x: prev.x + e.movementX,
+        y: prev.y + e.movementY,
+      }));
+      ctx.setTransform(
+        1,
+        0,
+        0,
+        1,
+        panOffset.x + e.movementX,
+        panOffset.y + e.movementY
+      );
+      redrawCanvas();
+      return;
+    }
+
+    if (!isDrawing) return;
+
+    const point = getCanvasPoint(e);
+
+    if (selectedTool === "pencil" || selectedTool === "eraser") {
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    } else if (currentShape) {
+      redrawCanvas();
+      setCurrentShape({
+        ...currentShape,
+        endX: point.x,
+        endY: point.y,
+      });
+      drawShape({
+        ...currentShape,
+        endX: point.x,
+        endY: point.y,
+      });
+    }
+  };
+
+  const stopDrawing = () => {
+    if (currentShape) {
+      setShapes([...shapes, currentShape]);
+      setCurrentShape(null);
+    }
+    setIsDrawing(false);
+    setIsPanning(false);
   };
 
   const tools = [
@@ -157,6 +279,7 @@ export default function Room() {
             onClick={() => {
               if (shapes.length > 0) {
                 setShapes(shapes.slice(0, -1));
+                redrawCanvas();
               }
             }}
           >
@@ -169,7 +292,14 @@ export default function Room() {
       </div>
 
       {/* Canvas */}
-      <canvas ref={canvasRef} className="flex-1 bg-white" />
+      <canvas
+        ref={canvasRef}
+        className="flex-1 bg-white"
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseOut={stopDrawing}
+      />
     </div>
   );
 }

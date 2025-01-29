@@ -37,16 +37,17 @@ type Message = {
 type parsedData = {
   type: "join_room" | "delete_room" | "leave_room" | "message",
   payload: {
-    roomName: string,
+    roomId: number,
     message?: Message,
   }
 }
 const Users: User[] = [];
-const Room:{[roomName:string]:string[]} = {}
+const Room:{[roomId:number]:string[]} = {}
 
 server.on("upgrade", (request, socket, head) => {
   try {
-    const authheader = request.headers.authorization;
+    const url = new URL(request.url!, `http://${request.headers.host}`);
+    const authheader = url.searchParams.get('token');
     if (!authheader) {
       console.log("Invalid or missing Authorization header");
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
@@ -99,31 +100,26 @@ wss.on('connection', function connection(ws) {
     const parsedData:parsedData = JSON.parse(data.toString());
     if(parsedData.type === "join_room"){
       try {
-        const roomName = parsedData.payload.roomName
-        const roomfromdb = await prisma.room.findUnique({
-            where: {
-              name: parsedData.payload.roomName
-            }
-          });
+        const roomId = parsedData.payload.roomId
             await prisma.user.update({
               where: { id: userId },
-              data: { roomId: roomfromdb!.id }
+              data: { roomId: roomId }
             })  
         const user = Users.find(user => user.id === userId)
-        if(!user?.room.includes(roomfromdb?.id!))
+        if(!user?.room.includes(roomId))
         {
-          user?.room.push(roomfromdb?.id!)
+          user?.room.push(roomId)
         }
-        if(Room[roomName])
+        if(Room[roomId])
         {
-          if(!(Room[roomName]).includes(userId))
+          if(!(Room[roomId]).includes(userId))
           {
-            Room[roomName].push(userId)
+            Room[roomId].push(userId)
           }
         }
         else
         {
-          Room[roomName] = [userId];
+          Room[roomId] = [userId];
         }
         ws.send(JSON.stringify({"status": 200, "message" : "Room Joined Successfully"}))
         
@@ -134,19 +130,16 @@ wss.on('connection', function connection(ws) {
     }
     if(parsedData.type === "leave_room"){
       try {
-        const roomName = parsedData.payload.roomName
-        const roomfromdb = await prisma.room.findUnique({
-          where:{name:parsedData.payload.roomName}
-        })
+        const roomId = parsedData.payload.roomId
         await prisma.user.update({
-          where:{id: userId, roomId: roomfromdb?.id },
+          where:{id: userId, roomId: roomId },
           data: {roomId: null}
         })
         const user = Users.find(user=> user.id === userId)
-        user?.room.splice(user.room.indexOf(roomfromdb?.id!))
-        if(Room[roomName] && (Room[roomName]).includes(userId))
+        user?.room.splice(user.room.indexOf(roomId))
+        if(Room[roomId] && (Room[roomId]).includes(userId))
           {
-              Room[roomName].splice(Room[roomName].indexOf(userId))
+              Room[roomId].splice(Room[roomId].indexOf(userId))
           }
         ws.send(JSON.stringify({"status": 200, "message" : "Room Left Successfully"}))
       } catch (error) {
@@ -156,20 +149,17 @@ wss.on('connection', function connection(ws) {
     }
     if(parsedData.type === "delete_room"){
       try {
-        const roomName = parsedData.payload.roomName
-        const roomFromdb = await prisma.room.findUnique({
-          where: {name: parsedData.payload.roomName}
-        })
+        const roomId = parsedData.payload.roomId
         await prisma.room.delete({
-          where: {id: roomFromdb?.id}
+          where: {id: roomId}
         })
         await prisma.user.update({
           where: {id: userId},
           data: {roomId: null}
         })
         const user = Users.find(user=> user.id === userId)
-        user?.room.splice(user.room.indexOf(roomFromdb?.id!));
-        delete Room[roomName]
+        user?.room.splice(user.room.indexOf(roomId));
+        delete Room[roomId]
         ws.send(JSON.stringify({"status": 200, "message" : "Room deleted Successfully"}))
       } catch (error) {
         console.log("error while deleting room", error)
@@ -178,9 +168,9 @@ wss.on('connection', function connection(ws) {
     }
     if(parsedData.type === "message") {
       try {
-        const roomName = parsedData.payload.roomName
+        const roomId = parsedData.payload.roomId
         const shapeType = parsedData.payload.message?.type
-        const userIdsInRoom = Room[roomName]
+        const userIdsInRoom = Room[roomId]
         if(userIdsInRoom)
         {
           userIdsInRoom.forEach((u)=>{
@@ -190,9 +180,7 @@ wss.on('connection', function connection(ws) {
           })
         }
 
-        const roomFromdb = await prisma.room.findUnique({
-          where: {name: parsedData.payload.roomName}
-        })
+
         
         if(shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect")
         {
@@ -212,7 +200,7 @@ wss.on('connection', function connection(ws) {
             data: {
               isPath: false,
               createdBy: userId,
-              roomId: roomFromdb?.id!,
+              roomId: roomId,
               shapeId: shapeCreated.id
             }
           })
@@ -223,7 +211,7 @@ wss.on('connection', function connection(ws) {
             data: {
               isPath: true,
               createdBy: userId,
-              roomId: roomFromdb?.id!,
+              roomId: roomId,
             }
           });
           const pathCreated = await prisma.path.create({
@@ -254,8 +242,6 @@ wss.on('connection', function connection(ws) {
     console.log("current server state User after",Users)
     console.log("current server state Room after",Room)
   });
-
-  ws.send('something');
 });
 
 
