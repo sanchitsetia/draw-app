@@ -29,7 +29,6 @@ type Shape = {
 };
 
 import axios from "axios";
-import { get } from "http";
 
 export default function Room() {
   const { roomId } = useParams();
@@ -65,11 +64,21 @@ export default function Room() {
   useEffect(() => {
     if (socket) {
       console.log("inside useEffect for socket on message");
+
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log(data);
         if (data.message === "Room Joined Successfully") {
           setRoomJoined(true);
         }
+        const canvasInstance = Canvas2D.getInstance();
+        canvasInstance.addShape({
+          currentx: data.currentx,
+          currenty: data.currenty,
+          startx: data.startx,
+          starty: data.starty,
+          type: data.type,
+        });
       };
       return () => {
         console.log("closing socket");
@@ -128,7 +137,7 @@ export default function Room() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - 64;
         const canvasInstance = Canvas2D.getInstance();
-        Canvas2D.initialize(canvas, "rectangle");
+        Canvas2D.initialize(canvas, "rect", socket);
       };
 
       window.addEventListener("resize", resizeCanvas);

@@ -49,10 +49,13 @@ export class Canvas2D{
     return Canvas2D.instance
   }
 
-  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser"):void {
+  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser",socket?:WebSocket):void {
     if(!Canvas2D.instance || Canvas2D.instance.canvas !== canvas){
       Canvas2D.instance!.canvas = canvas
     }
+    if(socket)
+      Canvas2D.instance!.socket = socket
+
     Canvas2D.instance?.detachEvents();    
     Canvas2D.instance!.currentSelectedShape = currentSelectedShape;
     Canvas2D.instance!.attachEvents();
@@ -531,7 +534,9 @@ private onMouseMovePanning = (event:WheelEvent)=>{
         const currentPoint = this.getCanvasPoint(event)
         this.currentx = currentPoint.x;
         this.currenty = currentPoint.y;
-        this.addShape({startx:this.startx,starty:this.starty,currentx:this.currentx,currenty:this.currenty,type:this.currentSelectedShape!})
+        const s:shape = {startx:this.startx,starty:this.starty,currentx:this.currentx,currenty:this.currenty,type:this.currentSelectedShape!}
+        this.addShape(s);
+        this.sendOverSocket(s);
       }
       this.isDrawing = false
     }
@@ -539,6 +544,29 @@ private onMouseMovePanning = (event:WheelEvent)=>{
     public addShape(shape:shape){
       this.shapes.push(shape)
       this.clearCanvas();
+    }
+
+    private sendOverSocket(shape?:shape, path?:path){
+      console.log("here");
+      if(shape)
+      this.socket?.send(JSON.stringify({
+        "type" : "message",
+        "payload": {
+            "roomId" : 4,
+            "message" : {
+              "type" : shape.type,
+              "startx": shape.startx,
+              "starty": shape.starty,
+              "currentx": shape.currentx,
+              "currenty": shape.currenty,
+              "color" : "black",
+              "width" : 10,
+              "fillColor": "red"
+          }
+        }
+        
+    }));
+    console.log("sent over socket");
     }
     public setShapes(shapes:shape[]){
       this.shapes = shapes
