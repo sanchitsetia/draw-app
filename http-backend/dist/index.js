@@ -95,10 +95,36 @@ app.post("/room", protectRoutes_1.protectRoutes, (req, res) => __awaiter(void 0,
         res.status(500).json({ error: "Internal Server Error" });
     }
 }));
-app.get("existingShapes", protectRoutes_1.protectRoutes, (req, res) => {
-    // to be implemented
-    res.json("to be implemented");
-});
+app.get("/existingShapes", protectRoutes_1.protectRoutes, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        //@ts-ignore
+        const userId = req.userid;
+        const user = yield prisma.user.findUnique({
+            where: { id: userId, roomId: Number(req.query.roomId) },
+        });
+        if (!user) {
+            res.status(200).json({ messages: [] });
+        }
+        const messages = yield prisma.message.findMany({
+            where: {
+                roomId: Number(req.query.roomId),
+            },
+            include: {
+                Path: {
+                    include: {
+                        Point: true,
+                    },
+                },
+                Shape: true,
+            }
+        });
+        res.status(200).json({ messages });
+    }
+    catch (error) {
+        console.log("error while fetching existing shapes", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+}));
 app.listen(3000, () => {
     console.log("Server listening on port 3000");
 });

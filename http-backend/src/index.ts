@@ -88,9 +88,37 @@ app.post("/room",protectRoutes,async (req:Request,res:Response)=>{
 })
 
 
-app.get("existingShapes",protectRoutes,(req:Request,res:Response)=>{
-  // to be implemented
-  res.json("to be implemented");
+app.get("/existingShapes",protectRoutes,async (req:Request,res:Response)=>{
+  try {
+    //@ts-ignore
+    const userId = req.userid
+    const user = await prisma.user.findUnique({
+      where:{id:userId,roomId: Number(req.query.roomId)},
+    })
+
+    if(!user){
+      res.status(200).json({messages:[]});
+    }
+    const messages =await prisma.message.findMany({
+      where:{
+        roomId:Number(req.query.roomId),
+      },
+      include: {
+        Path: {
+          include: {
+            Point: true,
+          },
+        },
+        Shape: true,
+      }
+    });
+    res.status(200).json({messages});
+
+    
+  } catch (error) {
+    console.log("error while fetching existing shapes",error);
+    res.status(500).json({error:"Internal Server Error"});
+  }
 })
 
 app.listen(3000, () => {

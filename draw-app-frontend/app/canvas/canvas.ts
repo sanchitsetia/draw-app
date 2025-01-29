@@ -3,7 +3,7 @@ interface shape {
   starty: number;
   currentx: number;
   currenty: number;
-  type: "rectangle" | "circle" | "line" | "diamond";
+  type: "rect" | "circle" | "line" | "diamond";
 }
 
 interface point {
@@ -26,7 +26,7 @@ export class Canvas2D{
   private starty = 0;
   private currentx = 0;
   private currenty = 0;
-  private currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond" | "pencil" | "eraser" = null;
+  private currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond" | "pencil" | "eraser" = null;
   private isSelected = false;
   private selectedIndex = 0;
   private isDraggable = false;
@@ -49,7 +49,7 @@ export class Canvas2D{
     return Canvas2D.instance
   }
 
-  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rectangle" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser"):void {
+  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser"):void {
     if(!Canvas2D.instance || Canvas2D.instance.canvas !== canvas){
       Canvas2D.instance!.canvas = canvas
     }
@@ -82,7 +82,7 @@ export class Canvas2D{
     if(!this.canvas) return;
     if(this.currentSelectedShape === null) 
       this.PanningEventHandler();
-    if(this.currentSelectedShape === "rectangle" || this.currentSelectedShape === "circle" || this.currentSelectedShape === "line" || this.currentSelectedShape === "diamond")
+    if(this.currentSelectedShape === "rect" || this.currentSelectedShape === "circle" || this.currentSelectedShape === "line" || this.currentSelectedShape === "diamond")
       this.ShapeEventHandler();
     else if(this.currentSelectedShape === "selector")
       this.SelectorEventHandler();
@@ -152,7 +152,8 @@ export class Canvas2D{
     return null;
   }
 
-   private clearCanvas() {
+   public clearCanvas() {
+    console.log("shapes in clean canvas func", this.shapes)
     const ctx = this.canvas?.getContext("2d");
     if(ctx)
     {
@@ -160,7 +161,7 @@ export class Canvas2D{
     this.drawPaths();
     console.log(this.shapes)
     this.shapes.forEach((shape,index)=>{
-      if(shape.type === "rectangle")
+      if(shape.type === "rect")
         this.drawRectangle(ctx,shape.startx,shape.starty,shape.currentx,shape.currenty);  
       else if(shape.type === "circle")
         this.drawCircle(ctx,shape.startx,shape.starty,shape.currentx,shape.currenty);
@@ -176,11 +177,11 @@ export class Canvas2D{
     }
   }
 
-  private drawDynamic = (type: "rectangle"|"circle"|"line"|"diamond") => {
+  private drawDynamic = (type: "rect"|"circle"|"line"|"diamond") => {
     const ctx = this.canvas?.getContext("2d");
     if(!ctx) return;
     this.clearCanvas();
-    if(type === "rectangle")
+    if(type === "rect")
       this.drawRectangle(ctx,this.startx,this.starty,this.currentx,this.currenty);
     else if(type === "circle")
       this.drawCircle(ctx,this.startx,this.starty,this.currentx,this.currenty);
@@ -537,6 +538,14 @@ private onMouseMovePanning = (event:WheelEvent)=>{
 
     public addShape(shape:shape){
       this.shapes.push(shape)
+      this.clearCanvas();
+    }
+    public setShapes(shapes:shape[]){
+      this.shapes = shapes
+      this.clearCanvas();
+    }
+    public setPaths(paths:path[]){
+      this.paths = paths
       this.clearCanvas();
     }
 }

@@ -28,6 +28,9 @@ type Shape = {
   width: number;
 };
 
+import axios from "axios";
+import { get } from "http";
+
 export default function Room() {
   const { roomId } = useParams();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,7 +40,6 @@ export default function Room() {
   const [lineWidth, setLineWidth] = useState(2);
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [shapes, setShapes] = useState<Shape[]>([]);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [roomJoined, setRoomJoined] = useState(false);
 
@@ -80,6 +82,47 @@ export default function Room() {
     if (roomJoined && canvasRef.current) {
       const canvas = canvasRef.current;
       if (!canvas) return;
+
+      const getShapes = async () => {
+        const res = await axios.get(
+          `http://localhost:3000/existingShapes?roomId=${roomId}`,
+          {
+            headers: {
+              Authorization: `${localStorage.getItem("authToken")}`,
+            },
+          }
+        );
+        if (res.status === 200) {
+          console.log(res.data.messages);
+          const canvasInstance = Canvas2D.getInstance();
+          let shapes = [];
+          let paths = [];
+          const shapesData = res.data.messages.filter((m) => !m.isPath);
+          const pathsData = res.data.messages.filter((m) => m.isPath);
+          console.log(shapesData);
+          shapesData.forEach((s) => {
+            shapes.push({
+              currentx: s.Shape.currentx,
+              currenty: s.Shape.currenty,
+              startx: s.Shape.startx,
+              starty: s.Shape.starty,
+              type: s.Shape.type,
+            });
+          });
+          pathsData.forEach((p) => {
+            paths.push({
+              color: "black",
+              width: 2,
+              points: p.Path.Point.map((i) => {
+                return { x: i.x, y: i.y };
+              }),
+            });
+          });
+          canvasInstance.setShapes(shapes);
+          canvasInstance.setPaths(paths);
+        }
+      };
+      getShapes();
 
       const resizeCanvas = () => {
         canvas.width = window.innerWidth;
@@ -158,15 +201,7 @@ export default function Room() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              if (shapes.length > 0) {
-                setShapes(shapes.slice(0, -1));
-              }
-            }}
-          >
+          <Button variant="ghost" size="icon" onClick={() => {}}>
             <Undo2 className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon">
