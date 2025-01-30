@@ -18,22 +18,12 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type Tool = "pencil" | "eraser" | "hand" | "line" | "circle" | "square";
-type Shape = {
-  tool: Tool;
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  color: string;
-  width: number;
-};
 
 import axios from "axios";
 
 export default function Room() {
   const { roomId } = useParams();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
@@ -41,6 +31,7 @@ export default function Room() {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [roomJoined, setRoomJoined] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -71,14 +62,16 @@ export default function Room() {
         if (data.message === "Room Joined Successfully") {
           setRoomJoined(true);
         }
-        const canvasInstance = Canvas2D.getInstance();
-        canvasInstance.addShape({
-          currentx: data.currentx,
-          currenty: data.currenty,
-          startx: data.startx,
-          starty: data.starty,
-          type: data.type,
-        });
+        if (data.type === "message") {
+          const canvasInstance = Canvas2D.getInstance();
+          canvasInstance.addShape({
+            currentx: data.payload.message.currentx,
+            currenty: data.payload.message.currenty,
+            startx: data.payload.message.startx,
+            starty: data.payload.message.starty,
+            type: data.payload.message.type,
+          });
+        }
       };
       return () => {
         console.log("closing socket");
@@ -138,6 +131,7 @@ export default function Room() {
         canvas.height = window.innerHeight - 64;
         const canvasInstance = Canvas2D.getInstance();
         Canvas2D.initialize(canvas, "rect", socket);
+        setSelectedTool("rect" as Tool);
       };
 
       window.addEventListener("resize", resizeCanvas);
@@ -160,10 +154,10 @@ export default function Room() {
   const tools = [
     { icon: Pencil, name: "pencil" as Tool },
     { icon: Eraser, name: "eraser" as Tool },
-    { icon: Hand, name: "hand" as Tool },
+    { icon: Hand, name: "selector" as Tool },
     { icon: Minus, name: "line" as Tool },
     { icon: Circle, name: "circle" as Tool },
-    { icon: Square, name: "square" as Tool },
+    { icon: Square, name: "rect" as Tool },
   ];
 
   return (
@@ -177,7 +171,10 @@ export default function Room() {
                 key={tool.name}
                 variant={selectedTool === tool.name ? "secondary" : "ghost"}
                 size="icon"
-                onClick={() => setSelectedTool(tool.name)}
+                onClick={() => {
+                  setSelectedTool(tool.name);
+                  Canvas2D.initialize(canvasRef.current!, tool.name, socket);
+                }}
                 className="h-8 w-8"
               >
                 <tool.icon className="h-4 w-4" />
