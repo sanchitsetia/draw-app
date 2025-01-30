@@ -349,15 +349,17 @@ private PencilEventHandler = ()=>{
 
 private onMouseDownPencil = (event:MouseEvent)=>{
   this.isDrawing = true;
-  this.startx = event.clientX
-  this.starty = event.clientY
+  const currentPoint = this.getCanvasPoint(event)
+  this.startx = currentPoint.x;
+  this.starty = currentPoint.y;
   this.currentPath.points.push({x:this.startx,y:this.starty})
 }
 
 private onMouseMovePencil = (event:MouseEvent)=>{
   if(this.isDrawing){
-    this.currentx = event.clientX
-    this.currenty = event.clientY
+    const currentPoint = this.getCanvasPoint(event)
+    this.currentx = currentPoint.x
+    this.currenty = currentPoint.y
     this.currentPath.points.push({x:this.currentx,y:this.currenty})
     this.clearCanvas()
   }
@@ -366,8 +368,9 @@ private onMouseMovePencil = (event:MouseEvent)=>{
 private onMouseUpPencil = (event:MouseEvent)=>{
   if(this.isDrawing){
     this.isDrawing = false;
-    this.paths.push(this.currentPath);
-    this.currentPath = { points: [], color: "black", width: 2 };   
+    this.addPath(this.currentPath);
+    this.sendOverSocket(undefined,this.currentPath);
+    this.currentPath = { points: [], color: "black", width: 2 };  
   }
 
 }
@@ -546,6 +549,11 @@ private onMouseMovePanning = (event:WheelEvent)=>{
       this.clearCanvas();
     }
 
+    public addPath(path:path){
+      this.paths.push(path);
+      this.clearCanvas(); 
+    }
+
     private sendOverSocket(shape?:shape, path?:path){
       console.log("here");
       if(shape)
@@ -564,8 +572,27 @@ private onMouseMovePanning = (event:WheelEvent)=>{
               "fillColor": "red"
           }
         }
-        
+      
     }));
+    else if(path) {
+      this.socket?.send(JSON.stringify({
+        "type" : "message",
+        "payload": {
+            "roomId" : 4,
+            "message" : {
+              "type" : "pencil",
+              "points": path.points.map((p,index)=>{
+                return {pointNumber:index+1,x:p.x,y:p.y}
+              }),
+              "color" : path.color,
+              "width" : path.width,
+              "fillColor": "red"
+          }
+        }
+      
+    }));
+        
+    }
     console.log("sent over socket");
     }
     public setShapes(shapes:shape[]){

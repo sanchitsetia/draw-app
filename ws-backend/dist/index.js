@@ -177,6 +177,7 @@ wss.on('connection', function connection(ws) {
                         });
                     }
                     else if (shapeType === "pencil") {
+                        console.log("pencil pencil");
                         const messageCreated = yield prisma.message.create({
                             data: {
                                 isPath: true,
