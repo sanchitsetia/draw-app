@@ -64,20 +64,28 @@ export default function Room() {
         }
         if (data.type === "message") {
           const canvasInstance = Canvas2D.getInstance();
-          if (data.payload.message.type !== "pencil")
-            canvasInstance.addShape({
+          if (data.payload.message.type !== "pencil") {
+            const s = {
               currentx: data.payload.message.currentx,
               currenty: data.payload.message.currenty,
               startx: data.payload.message.startx,
               starty: data.payload.message.starty,
               type: data.payload.message.type,
-            });
-          else {
-            canvasInstance.addPath({
+            };
+            if (data.payload.message.operation === "add")
+              canvasInstance.addShape(s);
+            else if (data.payload.message.operation === "delete")
+              canvasInstance.removeShape(s);
+          } else {
+            const p = {
               color: data.payload.message.color,
               width: data.payload.message.width,
               points: data.payload.message.points,
-            });
+            };
+            if (data.payload.message.operation === "add")
+              canvasInstance.addPath(p);
+            else if (data.payload.message.operation === "delete")
+              canvasInstance.removePath(p);
           }
         }
       };

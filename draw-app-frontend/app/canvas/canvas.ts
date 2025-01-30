@@ -263,6 +263,7 @@ private removeShapeOrPathSelected(x:number,y:number){
     if(this.isShapeSelected(x,y,s.startx,s.starty,s.currentx,s.currenty))
       {
         this.shapes.splice(index,1);
+        this.sendOverSocket(s,undefined,"delete");
         break;
       }
   }
@@ -270,6 +271,7 @@ private removeShapeOrPathSelected(x:number,y:number){
     if(this.isPathSelected(x,y,p.points))
       {
         this.paths.splice(index,1);
+        this.sendOverSocket(undefined,p,"delete");
         break;
       }
   }
@@ -549,12 +551,22 @@ private onMouseMovePanning = (event:WheelEvent)=>{
       this.clearCanvas();
     }
 
+    public removeShape(shape:shape){
+      this.shapes = this.shapes.filter((s) => s.startx !== shape.startx && s.starty !== shape.starty && s.currentx !== shape.currentx && s.currenty !== shape.currenty)
+      this.clearCanvas();
+    }
+
+    public removePath(path:path){
+      this.paths = this.paths.filter((p)=> JSON.stringify(p.points) !== JSON.stringify(path.points))
+      this.clearCanvas();
+    }
+
     public addPath(path:path){
       this.paths.push(path);
       this.clearCanvas(); 
     }
 
-    private sendOverSocket(shape?:shape, path?:path){
+    private sendOverSocket(shape?:shape, path?:path,operation: "add"|"delete" = "add") {
       console.log("here");
       if(shape)
       this.socket?.send(JSON.stringify({
@@ -563,6 +575,7 @@ private onMouseMovePanning = (event:WheelEvent)=>{
             "roomId" : 4,
             "message" : {
               "type" : shape.type,
+              "operation" : operation,
               "startx": shape.startx,
               "starty": shape.starty,
               "currentx": shape.currentx,
@@ -581,6 +594,7 @@ private onMouseMovePanning = (event:WheelEvent)=>{
             "roomId" : 4,
             "message" : {
               "type" : "pencil",
+              "operation" : operation,
               "points": path.points.map((p,index)=>{
                 return {pointNumber:index+1,x:p.x,y:p.y}
               }),
