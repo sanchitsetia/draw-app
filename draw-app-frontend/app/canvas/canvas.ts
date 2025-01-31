@@ -289,16 +289,18 @@ private isPathSelected(x:number,y:number,points:point[]){
 
 private onMouseDownEraser = (e:MouseEvent)=>{
   this.isErasing = true;
-  this.startx = e.clientX
-  this.starty = e.clientY
+  const currentPoint = this.getCanvasPoint(e)
+  this.startx = currentPoint.x;
+  this.starty = currentPoint.y;
   this.removeShapeOrPathSelected(this.startx,this.starty);
 }
 
 private onMouseMoveEraser = (e:MouseEvent)=>{
   if(!this.isErasing)
     return;
-  this.currentx = e.clientX
-  this.currenty = e.clientY
+  const currentPoint = this.getCanvasPoint(e)
+  this.currentx = currentPoint.x
+  this.currenty = currentPoint.y
   this.removeShapeOrPathSelected(this.currentx,this.currenty);
   this.clearCanvas();
 }

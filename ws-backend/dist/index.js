@@ -71,7 +71,7 @@ wss.on('connection', function connection(ws) {
     ws.on('error', console.error);
     ws.on('message', function message(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
             console.log('received: %s', data);
             console.log("current server state User before", Users);
             console.log("current server state Room before", Room);
@@ -155,26 +155,43 @@ wss.on('connection', function connection(ws) {
                         });
                     }
                     if (shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect") {
-                        const shapeCreated = yield prisma.shape.create({
-                            data: {
-                                color: (_b = parsedData.payload.message) === null || _b === void 0 ? void 0 : _b.color,
-                                currentx: (_c = parsedData.payload.message) === null || _c === void 0 ? void 0 : _c.currentx,
-                                currenty: (_d = parsedData.payload.message) === null || _d === void 0 ? void 0 : _d.currenty,
-                                fillColor: (_e = parsedData.payload.message) === null || _e === void 0 ? void 0 : _e.fillColor,
-                                startx: (_f = parsedData.payload.message) === null || _f === void 0 ? void 0 : _f.startx,
-                                starty: (_g = parsedData.payload.message) === null || _g === void 0 ? void 0 : _g.starty,
-                                type: shapeType,
-                                width: (_h = parsedData.payload.message) === null || _h === void 0 ? void 0 : _h.width,
-                            }
-                        });
-                        yield prisma.message.create({
-                            data: {
-                                isPath: false,
-                                createdBy: userId,
-                                roomId: roomId,
-                                shapeId: shapeCreated.id
-                            }
-                        });
+                        if (((_b = parsedData.payload.message) === null || _b === void 0 ? void 0 : _b.operation) === "add") {
+                            const shapeCreated = yield prisma.shape.create({
+                                data: {
+                                    color: (_c = parsedData.payload.message) === null || _c === void 0 ? void 0 : _c.color,
+                                    currentx: (_d = parsedData.payload.message) === null || _d === void 0 ? void 0 : _d.currentx,
+                                    currenty: (_e = parsedData.payload.message) === null || _e === void 0 ? void 0 : _e.currenty,
+                                    fillColor: (_f = parsedData.payload.message) === null || _f === void 0 ? void 0 : _f.fillColor,
+                                    startx: (_g = parsedData.payload.message) === null || _g === void 0 ? void 0 : _g.startx,
+                                    starty: (_h = parsedData.payload.message) === null || _h === void 0 ? void 0 : _h.starty,
+                                    type: shapeType,
+                                    width: (_j = parsedData.payload.message) === null || _j === void 0 ? void 0 : _j.width,
+                                }
+                            });
+                            yield prisma.message.create({
+                                data: {
+                                    isPath: false,
+                                    createdBy: userId,
+                                    roomId: roomId,
+                                    shapeId: shapeCreated.id
+                                }
+                            });
+                        }
+                        else if (((_k = parsedData.payload.message) === null || _k === void 0 ? void 0 : _k.operation) === "delete") {
+                            yield prisma.message.deleteMany({
+                                where: {
+                                    isPath: false,
+                                    roomId: roomId,
+                                    Shape: {
+                                        currentx: (_l = parsedData.payload.message) === null || _l === void 0 ? void 0 : _l.currentx,
+                                        currenty: (_m = parsedData.payload.message) === null || _m === void 0 ? void 0 : _m.currenty,
+                                        startx: (_o = parsedData.payload.message) === null || _o === void 0 ? void 0 : _o.startx,
+                                        starty: (_p = parsedData.payload.message) === null || _p === void 0 ? void 0 : _p.starty,
+                                        type: shapeType,
+                                    }
+                                }
+                            });
+                        }
                     }
                     else if (shapeType === "pencil") {
                         console.log("pencil pencil");
@@ -191,7 +208,7 @@ wss.on('connection', function connection(ws) {
                             }
                         });
                         const pointsTobeInserted = [];
-                        (_k = (_j = parsedData.payload.message) === null || _j === void 0 ? void 0 : _j.points) === null || _k === void 0 ? void 0 : _k.forEach((items) => {
+                        (_r = (_q = parsedData.payload.message) === null || _q === void 0 ? void 0 : _q.points) === null || _r === void 0 ? void 0 : _r.forEach((items) => {
                             pointsTobeInserted.push({ pathId: pathCreated.id, pointNumber: items.pointNumber, x: items.x, y: items.y });
                         });
                         yield prisma.point.createMany({

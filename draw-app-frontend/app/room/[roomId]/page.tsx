@@ -84,8 +84,10 @@ export default function Room() {
             };
             if (data.payload.message.operation === "add")
               canvasInstance.addPath(p);
-            else if (data.payload.message.operation === "delete")
+            else if (data.payload.message.operation === "delete") {
+              console.log("here");
               canvasInstance.removePath(p);
+            }
           }
         }
       };

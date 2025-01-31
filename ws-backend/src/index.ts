@@ -28,6 +28,7 @@ type Message = {
   starty?: number,
   currentx?: number,
   currenty?: number,
+  operation?: "add" | "delete",
   color: string,
   width: number,
   fillColor: string
@@ -182,26 +183,45 @@ wss.on('connection', function connection(ws) {
 
         if(shapeType === "circle" || shapeType === "diamond" || shapeType === "line" || shapeType === "rect")
         {
-          const shapeCreated = await prisma.shape.create({
-            data: {
-              color:parsedData.payload.message?.color!,
-              currentx:parsedData.payload.message?.currentx!,
-              currenty:parsedData.payload.message?.currenty!,
-              fillColor:parsedData.payload.message?.fillColor!,
-              startx: parsedData.payload.message?.startx!,
-              starty: parsedData.payload.message?.starty!,
-              type: shapeType,
-              width: parsedData.payload.message?.width!,
-          }})
-
-          await prisma.message.create({
-            data: {
-              isPath: false,
-              createdBy: userId,
-              roomId: roomId,
-              shapeId: shapeCreated.id
-            }
+          if(parsedData.payload.message?.operation === "add")
+          {
+            const shapeCreated = await prisma.shape.create({
+              data: {
+                color:parsedData.payload.message?.color!,
+                currentx:parsedData.payload.message?.currentx!,
+                currenty:parsedData.payload.message?.currenty!,
+                fillColor:parsedData.payload.message?.fillColor!,
+                startx: parsedData.payload.message?.startx!,
+                starty: parsedData.payload.message?.starty!,
+                type: shapeType,
+                width: parsedData.payload.message?.width!,
+            }})
+  
+            await prisma.message.create({
+              data: {
+                isPath: false,
+                createdBy: userId,
+                roomId: roomId,
+                shapeId: shapeCreated.id
+              }
+            })
+          }
+          else if(parsedData.payload.message?.operation === "delete")
+          {
+            await prisma.message.deleteMany({
+              where: {
+                isPath: false,
+                roomId: roomId,
+                Shape:{
+                  currentx: parsedData.payload.message?.currentx!,
+                  currenty: parsedData.payload.message?.currenty!,
+                  startx: parsedData.payload.message?.startx!,
+                  starty: parsedData.payload.message?.starty!,
+                  type: shapeType,
+                }
+              }
           })
+        }
         }
         else if(shapeType === "pencil")
         {
