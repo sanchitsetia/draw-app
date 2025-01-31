@@ -71,7 +71,7 @@ wss.on('connection', function connection(ws) {
     ws.on('error', console.error);
     ws.on('message', function message(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
             console.log('received: %s', data);
             console.log("current server state User before", Users);
             console.log("current server state Room before", Room);
@@ -194,32 +194,42 @@ wss.on('connection', function connection(ws) {
                         }
                     }
                     else if (shapeType === "pencil") {
-                        console.log("pencil pencil");
-                        const messageCreated = yield prisma.message.create({
-                            data: {
-                                isPath: true,
-                                createdBy: userId,
-                                roomId: roomId,
-                            }
-                        });
-                        const pathCreated = yield prisma.path.create({
-                            data: {
-                                messageId: messageCreated.id
-                            }
-                        });
-                        const pointsTobeInserted = [];
-                        (_r = (_q = parsedData.payload.message) === null || _q === void 0 ? void 0 : _q.points) === null || _r === void 0 ? void 0 : _r.forEach((items) => {
-                            pointsTobeInserted.push({ pathId: pathCreated.id, pointNumber: items.pointNumber, x: items.x, y: items.y });
-                        });
-                        yield prisma.point.createMany({
-                            data: pointsTobeInserted
-                        });
-                        yield prisma.message.update({
-                            where: { id: messageCreated.id },
-                            data: {
-                                pathId: pathCreated.id
-                            }
-                        });
+                        if (((_q = parsedData.payload.message) === null || _q === void 0 ? void 0 : _q.operation) === "add") {
+                            console.log("pencil pencil");
+                            const messageCreated = yield prisma.message.create({
+                                data: {
+                                    isPath: true,
+                                    createdBy: userId,
+                                    roomId: roomId,
+                                }
+                            });
+                            const pathCreated = yield prisma.path.create({
+                                data: {
+                                    messageId: messageCreated.id
+                                }
+                            });
+                            const pointsTobeInserted = [];
+                            (_s = (_r = parsedData.payload.message) === null || _r === void 0 ? void 0 : _r.points) === null || _s === void 0 ? void 0 : _s.forEach((items) => {
+                                pointsTobeInserted.push({ pathId: pathCreated.id, pointNumber: items.pointNumber, x: items.x, y: items.y });
+                            });
+                            yield prisma.point.createMany({
+                                data: pointsTobeInserted
+                            });
+                            yield prisma.message.update({
+                                where: { id: messageCreated.id },
+                                data: {
+                                    pathId: pathCreated.id
+                                }
+                            });
+                        }
+                        else if (((_t = parsedData.payload.message) === null || _t === void 0 ? void 0 : _t.operation) === "delete") {
+                            yield prisma.message.deleteMany({
+                                where: {
+                                    isPath: true,
+                                    roomId: roomId
+                                }
+                            });
+                        }
                     }
                 }
                 catch (error) {

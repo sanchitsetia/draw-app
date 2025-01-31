@@ -19,7 +19,7 @@ model User {
   password String
   name     String
   roomId   Int?
-  Room     Room?     @relation(fields: [roomId], references: [id])
+  Room     Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   Message  Message[]
 }
 
@@ -37,10 +37,10 @@ model Message {
   isPath    Boolean
   shapeId   Int?    @unique
   pathId    Int?    @unique
-  Room      Room    @relation(fields: [roomId], references: [id])
+  Room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   User      User    @relation(fields: [createdBy], references: [id])
-  Shape     Shape?  @relation(fields: [shapeId], references: [id])
-  Path      Path?   @relation(fields: [pathId], references: [id])
+  Shape     Shape?  @relation(fields: [shapeId], references: [id], onDelete: Cascade)
+  Path      Path?   @relation(fields: [pathId], references: [id], onDelete: Cascade)
 }
 
 model Shape {
@@ -69,7 +69,7 @@ model Point {
   y           Int
   pointNumber Int
   pathId      Int
-  Path        Path @relation(fields: [pathId], references: [id])
+  Path        Path @relation(fields: [pathId], references: [id], onDelete: Cascade)
 }
 
 // Error parsing attribute "@relation": A one-to-one relation must use unique fields on the defining side. Either add an `@unique` attribute to the field `shapeId`, or change the relation to one-to-many.Prisma

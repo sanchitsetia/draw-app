@@ -225,32 +225,45 @@ wss.on('connection', function connection(ws) {
         }
         else if(shapeType === "pencil")
         {
-          console.log("pencil pencil")
-          const messageCreated = await prisma.message.create({
-            data: {
-              isPath: true,
-              createdBy: userId,
-              roomId: roomId,
-            }
-          });
-          const pathCreated = await prisma.path.create({
-            data: {
-              messageId:messageCreated.id
-            }
-          });
-          const pointsTobeInserted:({pathId:number,pointNumber:number,x:number,y:number}[]) = [];
-          parsedData.payload.message?.points?.forEach((items)=>{
-            pointsTobeInserted.push({pathId:pathCreated.id,pointNumber:items.pointNumber,x:items.x,y:items.y})
+          if(parsedData.payload.message?.operation === "add")
+          {
+            console.log("pencil pencil")
+            const messageCreated = await prisma.message.create({
+              data: {
+                isPath: true,
+                createdBy: userId,
+                roomId: roomId,
+              }
+            });
+            const pathCreated = await prisma.path.create({
+              data: {
+                messageId:messageCreated.id
+              }
+            });
+            const pointsTobeInserted:({pathId:number,pointNumber:number,x:number,y:number}[]) = [];
+            parsedData.payload.message?.points?.forEach((items)=>{
+              pointsTobeInserted.push({pathId:pathCreated.id,pointNumber:items.pointNumber,x:items.x,y:items.y})
+            })
+            await prisma.point.createMany({
+              data: pointsTobeInserted
+            })
+            await prisma.message.update({
+              where: {id: messageCreated.id},
+              data: {
+                pathId: pathCreated.id
+              }
+            }) 
+          }
+          else if(parsedData.payload.message?.operation === "delete")
+          {
+            await prisma.message.deleteMany({
+              where: {
+                isPath: true,
+                roomId: roomId
+              }
           })
-          await prisma.point.createMany({
-            data: pointsTobeInserted
-          })
-          await prisma.message.update({
-            where: {id: messageCreated.id},
-            data: {
-              pathId: pathCreated.id
-            }
-          })
+          }
+          
         }
         
       } catch (error) {
