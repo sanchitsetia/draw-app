@@ -39,6 +39,7 @@ export class Canvas2D{
   private currentPath: path = { points: [], color: "black", width: 2 };
   private isErasing = false;
   private socket: WebSocket | null = null;
+  private roomId: number | null = null;
 
   private constructor() {}
 
@@ -49,12 +50,14 @@ export class Canvas2D{
     return Canvas2D.instance
   }
 
-  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser",socket?:WebSocket):void {
+  public static initialize(canvas: HTMLCanvasElement,currentSelectedShape: "rect" | "circle" | null | "selector" | "line" | "diamond"|"pencil" | "eraser",socket?:WebSocket,roomId?:number):void {
     if(!Canvas2D.instance || Canvas2D.instance.canvas !== canvas){
       Canvas2D.instance!.canvas = canvas
     }
     if(socket)
       Canvas2D.instance!.socket = socket
+    if(roomId)
+      Canvas2D.instance!.roomId = roomId
 
     Canvas2D.instance?.detachEvents();    
     Canvas2D.instance!.currentSelectedShape = currentSelectedShape;
@@ -574,7 +577,7 @@ private onMouseMovePanning = (event:WheelEvent)=>{
       this.socket?.send(JSON.stringify({
         "type" : "message",
         "payload": {
-            "roomId" : 4,
+            "roomId" : this.roomId,
             "message" : {
               "type" : shape.type,
               "operation" : operation,
@@ -593,7 +596,7 @@ private onMouseMovePanning = (event:WheelEvent)=>{
       this.socket?.send(JSON.stringify({
         "type" : "message",
         "payload": {
-            "roomId" : 4,
+            "roomId" : this.roomId,
             "message" : {
               "type" : "pencil",
               "operation" : operation,

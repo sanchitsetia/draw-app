@@ -148,7 +148,7 @@ export default function Room() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - 64;
         const canvasInstance = Canvas2D.getInstance();
-        Canvas2D.initialize(canvas, "rect", socket);
+        Canvas2D.initialize(canvas, "rect", socket, Number(roomId));
         setSelectedTool("rect" as Tool);
       };
 
@@ -191,7 +191,12 @@ export default function Room() {
                 size="icon"
                 onClick={() => {
                   setSelectedTool(tool.name);
-                  Canvas2D.initialize(canvasRef.current!, tool.name, socket);
+                  Canvas2D.initialize(
+                    canvasRef.current!,
+                    tool.name,
+                    socket,
+                    Number(roomId)
+                  );
                 }}
                 className="h-8 w-8"
               >
